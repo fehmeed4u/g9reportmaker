@@ -350,19 +350,19 @@ function Roster({ rows, editingId, onEdit, onDelete, onExport, onCopy }) {
                   <div className="nm">{r.name}</div>
                   <div className="pn">{r.pronoun}</div>
                 </td>
-                <td className="cmt-cell">{r.comment}</td>
+                <td className="cmt-cell" data-label="Comment">{r.comment}</td>
                 {[0, 1, 2].map(i => {
                   const t = r.targets[i];
-                  if (!t || !t.text) return <td className="tgt-cell muted" key={i}>—</td>;
+                  if (!t || !t.text) return <td className="tgt-cell muted is-empty" key={i} data-label={`Target ${i + 1}`}>—</td>;
                   const tt = TARGET_TYPES.find(x => x.key === t.type);
                   return (
-                    <td className="tgt-cell" key={i}>
+                    <td className="tgt-cell" key={i} data-label={`Target ${i + 1}`}>
                       {tt && <div className="tgt-tag-mini">{tt.short}</div>}
                       {t.text}
                     </td>
                   );
                 })}
-                <td>
+                <td className="actions-cell">
                   <div className="row-actions">
                     <button type="button" className={"icon-btn" + (copiedId === r.id ? " ok" : "")} title="Copy comment and targets" aria-label={`Copy report for ${r.name}`} onClick={() => copy(r)}>
                       {copiedId === r.id ? <Icon.Check /> : <Icon.Copy />}

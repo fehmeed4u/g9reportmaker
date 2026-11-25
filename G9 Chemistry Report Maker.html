@@ -610,6 +610,20 @@
     .save-row { flex-direction: column-reverse; align-items: stretch; }
     .save-row .btn, .generate-row .btn { justify-content: center; }
     .generate-row { flex-direction: column; align-items: stretch; }
+    .roster-table thead { display: none; }
+    .roster-table, .roster-table tbody, .roster-table tr, .roster-table td { display: block; width: 100%; }
+    .roster-table tr { position: relative; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    .roster-table tr:last-child { border-bottom: none; }
+    .roster-table td { padding: 0; border: none; max-width: none !important; }
+    .roster-table td + td { margin-top: 10px; }
+    .roster-table td[data-label]::before {
+      content: attr(data-label); display: block;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--ink-mute); margin-bottom: 3px;
+    }
+    .roster-table td.is-empty { display: none; }
+    .roster-table .name-cell { padding-right: 150px; min-height: 44px; }
+    .roster-table .actions-cell { position: absolute; top: 14px; right: 16px; width: auto; margin: 0; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
