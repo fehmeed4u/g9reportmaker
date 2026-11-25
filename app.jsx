@@ -81,6 +81,8 @@ const Icon = {
   Trash: () => <svg viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6 4.5V3a.5.5 0 01.5-.5h3a.5.5 0 01.5.5v1.5M4.5 4.5l.5 8a1 1 0 001 1h4a1 1 0 001-1l.5-8" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" strokeLinecap="round"/></svg>,
   Plus: () => <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   Flask: () => <svg viewBox="0 0 16 16" fill="none"><path d="M6 1.5h4M6.5 1.5v4l-3 6.5a1.5 1.5 0 001.4 2h6.2a1.5 1.5 0 001.4-2l-3-6.5v-4" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" strokeLinecap="round"/><path d="M4.2 9.5h7.6" stroke="currentColor" strokeWidth="1.3"/></svg>,
+  Copy: () => <svg viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" stroke="currentColor" strokeWidth="1.3"/></svg>,
+  Check: () => <svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   X: () => <svg viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
 };
 
@@ -155,14 +157,14 @@ function parseAIOutput(text, expectTargets) {
 
 function Topbar({ savedCount, onExport, onClearAll }) {
   return (
-    <div className="topbar">
-      <div className="logo">G</div>
+    <header className="topbar">
+      <div className="logo" aria-hidden="true">G</div>
       <div className="brand">
         <span className="name">G9 Chemistry End of Year Report Maker</span>
         <span className="sub">IGCSE Edition · Comments &amp; targets</span>
       </div>
       <div className="topbar-spacer" />
-      <div className="saved-pill">
+      <div className="saved-pill" aria-live="polite">
         <span className="dot" />
         <span><b>{savedCount}</b> saved {savedCount === 1 ? "report" : "reports"}</span>
       </div>
@@ -172,20 +174,25 @@ function Topbar({ savedCount, onExport, onClearAll }) {
       <button className="btn ghost danger" onClick={onClearAll} disabled={savedCount === 0}>
         Clear all
       </button>
-    </div>
+    </header>
   );
 }
 
 function LevelMatrix({ levels, onSet }) {
   return (
     <div className="matrix">
+      <div className="lvl-legend" aria-hidden="true">
+        {LEVELS.map(l => (
+          <span key={l.key}><i style={{ background: l.tint }} />{l.short} = {l.label}</span>
+        ))}
+      </div>
       {CATEGORIES.map(cat => (
         <div className="matrix-row" key={cat.key}>
-          <div className="cat-cell">
+          <div className="cat-cell" id={"cat-" + cat.key}>
             <span className="cat-name">{cat.label}</span>
-            <span className="cat-blurb">{cat.blurb.length > 64 ? cat.blurb.slice(0, 64) + "…" : cat.blurb}</span>
+            <span className="cat-blurb" title={cat.blurb}>{cat.blurb.length > 64 ? cat.blurb.slice(0, 64) + "…" : cat.blurb}</span>
           </div>
-          <div className="level-row">
+          <div className="level-row" role="group" aria-labelledby={"cat-" + cat.key}>
             {LEVELS.map(lvl => {
               const on = levels[cat.key] === lvl.key;
               const style = on ? {
@@ -197,7 +204,10 @@ function LevelMatrix({ levels, onSet }) {
                 <button
                   key={lvl.key}
                   className="lvl"
+                  type="button"
                   data-on={on}
+                  aria-pressed={on}
+                  aria-label={lvl.label}
                   data-tip={lvl.label}
                   style={style}
                   onClick={() => onSet(cat.key, lvl.key)}
@@ -219,15 +229,20 @@ function TargetsStack({ targets, onChange }) {
     <div className="targets-stack">
       {[0, 1, 2].map(i => (
         <div className="target-slot" key={i}>
-          <div className={"num" + (i === 2 ? " optional" : "")}>{i + 1}</div>
+          <div className={"num" + (i === 2 ? " optional" : "")} aria-hidden="true">{i + 1}</div>
           <select
             className="select"
+            aria-label={i === 2 ? "Target 3 (optional)" : `Target ${i + 1}`}
             value={targets[i] || ""}
             onChange={e => onChange(i, e.target.value)}
           >
-            <option value="">{i === 2 ? "— Optional third target —" : "Choose target area…"}</option>
+            <option value="">{i === 2 ? "Optional third target…" : "Choose target area…"}</option>
             {TARGET_TYPES.map(t => (
-              <option key={t.key} value={t.key}>{t.label}</option>
+              <option
+                key={t.key}
+                value={t.key}
+                disabled={targets.some((v, j) => j !== i && v === t.key)}
+              >{t.label}</option>
             ))}
           </select>
         </div>
@@ -239,19 +254,28 @@ function TargetsStack({ targets, onChange }) {
 function CommentOutput({ value, onChange }) {
   const len = value.length;
   const over = len > MAX_CHARS;
+  const near = !over && len > MAX_CHARS * 0.9;
+  const pct = Math.min(100, (len / MAX_CHARS) * 100);
   return (
-    <div className="comment-wrap">
-      <label className="field-label">Report comment</label>
+    <div>
+      <label className="field-label" htmlFor="comment-out">Report comment</label>
+      <div className="comment-wrap">
       <textarea
+        id="comment-out"
+        aria-describedby="comment-count"
         className="textarea"
         value={value}
         onChange={e => onChange(e.target.value)}
         rows={6}
         placeholder="Comment will appear here…"
       />
-      <span className={"char-counter" + (over ? " over" : "")}>
+      <span id="comment-count" className={"char-counter" + (over ? " over" : near ? " near" : "")}>
         {len} / {MAX_CHARS}
       </span>
+      </div>
+      <div className={"char-meter" + (over ? " over" : near ? " near" : "")} aria-hidden="true">
+        <span style={{ width: pct + "%" }} />
+      </div>
     </div>
   );
 }
@@ -261,10 +285,11 @@ function TargetOutputRow({ idx, type, text, onTextChange }) {
   return (
     <div className="target-out">
       <div className="target-out-head">
-        <span>Target {idx + 1}</span>
+        <label htmlFor={"target-out-" + idx}>Target {idx + 1}</label>
         {tt && <span className="target-tag">{tt.short}</span>}
       </div>
       <textarea
+        id={"target-out-" + idx}
         className="textarea"
         value={text}
         onChange={e => onTextChange(e.target.value)}
@@ -275,7 +300,14 @@ function TargetOutputRow({ idx, type, text, onTextChange }) {
   );
 }
 
-function Roster({ rows, onEdit, onDelete, onExport }) {
+function Roster({ rows, editingId, onEdit, onDelete, onExport, onCopy }) {
+  const [copiedId, setCopiedId] = useState(null);
+  const copy = async (r) => {
+    if (await onCopy(r)) {
+      setCopiedId(r.id);
+      setTimeout(() => setCopiedId(c => (c === r.id ? null : c)), 1500);
+    }
+  };
   if (!rows.length) {
     return (
       <div className="card roster-card">
@@ -284,7 +316,7 @@ function Roster({ rows, onEdit, onDelete, onExport }) {
           <span className="hint">Roster</span>
         </div>
         <div className="roster-empty">
-          <div className="ic"><Icon.Flask /></div>
+          <div className="ic" aria-hidden="true"><Icon.Flask /></div>
           No saved reports yet. Build a comment above and hit <b>Save</b> to add a student to the roster.
         </div>
       </div>
@@ -308,12 +340,12 @@ function Roster({ rows, onEdit, onDelete, onExport }) {
               <th>Target 1</th>
               <th>Target 2</th>
               <th>Target 3</th>
-              <th style={{ textAlign: "right" }}>Actions</th>
+              <th style={{ textAlign: "right" }}><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {rows.map(r => (
-              <tr key={r.id}>
+              <tr key={r.id} className={r.id === editingId ? "is-editing" : undefined}>
                 <td className="name-cell">
                   <div className="nm">{r.name}</div>
                   <div className="pn">{r.pronoun}</div>
@@ -332,8 +364,11 @@ function Roster({ rows, onEdit, onDelete, onExport }) {
                 })}
                 <td>
                   <div className="row-actions">
-                    <button className="icon-btn" title="Edit" onClick={() => onEdit(r.id)}><Icon.Edit /></button>
-                    <button className="icon-btn danger" title="Delete" onClick={() => onDelete(r.id)}><Icon.Trash /></button>
+                    <button type="button" className={"icon-btn" + (copiedId === r.id ? " ok" : "")} title="Copy comment and targets" aria-label={`Copy report for ${r.name}`} onClick={() => copy(r)}>
+                      {copiedId === r.id ? <Icon.Check /> : <Icon.Copy />}
+                    </button>
+                    <button type="button" className="icon-btn" title="Edit" aria-label={`Edit report for ${r.name}`} onClick={() => onEdit(r.id)}><Icon.Edit /></button>
+                    <button type="button" className="icon-btn danger" title="Delete" aria-label={`Delete report for ${r.name}`} onClick={() => onDelete(r.id)}><Icon.Trash /></button>
                   </div>
                 </td>
               </tr>
@@ -362,6 +397,14 @@ function App() {
   const [status, setStatus] = useState("");
   const [rows, setRows] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef(null);
+  const showToast = (msg) => {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 2200);
+  };
+  const nameRef = useRef(null);
 
   // Load roster
   useEffect(() => {
@@ -475,8 +518,10 @@ function App() {
       }
       return [rec, ...prev];
     });
-    setStatus(editingId ? "Updated." : "Saved.");
+    const wasEditing = !!editingId;
     clearForm();
+    showToast(wasEditing ? `Updated ${rec.name}` : `Saved ${rec.name} to roster`);
+    setTimeout(() => nameRef.current && nameRef.current.focus(), 0);
   };
 
   const editRow = (id) => {
@@ -490,7 +535,21 @@ function App() {
     setEditingId(r.id);
     setHasOutput(true);
     setStatus("Editing — changes will replace the existing row on save.");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    setTimeout(() => nameRef.current && nameRef.current.focus({ preventScroll: true }), 0);
+  };
+
+  const copyRow = async (r) => {
+    const parts = [r.comment, ...r.targets.filter(t => t && t.text).map(t => t.text)];
+    try {
+      await navigator.clipboard.writeText(parts.join("\n\n"));
+      showToast(`Copied ${firstName(r.name)}'s report`);
+      return true;
+    } catch (e) {
+      showToast("Couldn't copy. Select the text manually.");
+      return false;
+    }
   };
 
   const deleteRow = (id) => {
@@ -506,6 +565,7 @@ function App() {
 
   const exportCSV = () => {
     if (!rows.length) return;
+    showToast(`Exported ${rows.length} ${rows.length === 1 ? "report" : "reports"}`);
     const head = ["Name", "Pronoun", "Comment",
       "Target 1 Type", "Target 1",
       "Target 2 Type", "Target 2",
@@ -544,26 +604,28 @@ function App() {
         onClearAll={clearAll}
       />
 
-      <div className="page">
+      <main className="page">
         {/* ── Form card ─────────────────────────────── */}
         <div className="card">
           <div className="card-hd">
-            <h2>New report</h2>
+            <h2>{editingId ? `Editing ${firstName(name) || "report"}` : "New report"}</h2>
             <span className="hint">Pick levels · choose targets · generate</span>
           </div>
           <div className="card-bd">
             {editingId && (
               <div className="editing-banner">
                 <span className="dot" /> Editing existing row — Save to replace, or
-                <button className="btn sm ghost" style={{ marginLeft: 4 }} onClick={clearForm}>cancel</button>
+                <button type="button" className="btn sm ghost" style={{ marginLeft: 4 }} onClick={clearForm}>cancel</button>
               </div>
             )}
 
             {/* Row 1: name + pronoun */}
             <div className="row1">
               <div>
-                <label className="field-label">Student name</label>
+                <label className="field-label" htmlFor="student-name"><span className="step">1</span>Student name</label>
                 <input
+                  id="student-name"
+                  ref={nameRef}
                   className="input"
                   type="text"
                   value={name}
@@ -573,13 +635,15 @@ function App() {
                 />
               </div>
               <div>
-                <label className="field-label">Pronoun</label>
-                <div className="chips">
+                <span className="field-label" id="pronoun-label">Pronoun</span>
+                <div className="chips" role="group" aria-labelledby="pronoun-label">
                   {["He/Him", "She/Her", "They/Them"].map(p => (
                     <button
                       key={p}
+                      type="button"
                       className="chip"
                       data-on={pronoun === p}
+                      aria-pressed={pronoun === p}
                       onClick={() => setPronoun(p)}
                     >{p}</button>
                   ))}
@@ -590,26 +654,39 @@ function App() {
             {/* Row 2: matrix + targets */}
             <div className="row2">
               <div>
-                <label className="field-label">Performance levels</label>
+                <span className="field-label"><span className="step">2</span>Performance levels</span>
                 <LevelMatrix levels={levels} onSet={setLevel} />
               </div>
               <div className="col-divider">
-                <label className="field-label">Targets <span className="muted">(min 2, third optional)</span></label>
+                <span className="field-label"><span className="step">3</span>Targets <span className="muted">(min 2, third optional)</span></span>
                 <TargetsStack targets={targetTypes} onChange={setTargetType} />
 
                 <div className="generate-row">
                   <button
+                    type="button"
                     className="btn primary"
                     disabled={!canGenerate}
+                    aria-busy={generating}
                     onClick={generate}
                   >
                     {generating ? <span className="spin" /> : <Icon.Sparkle />}
                     {generating ? "Drafting…" : "Generate with AI"}
                   </button>
-                  <span className="status-line">
-                    {status || (name.trim() ? `Ready for ${firstName(name)}.` : "Enter a name to begin.")}
+                  <span className="status-line" role="status" aria-live="polite">
+                    {status || (canGenerate ? `Ready for ${firstName(name)}.` : "")}
                   </span>
                 </div>
+                <ul className="checklist" aria-label="Before generating">
+                  {[
+                    { done: !!name.trim(), label: "Student name" },
+                    { done: activeTargetTypes.length >= 2, label: "Two targets chosen" },
+                  ].map(c => (
+                    <li key={c.label} className={c.done ? "done" : undefined}>
+                      <span className="tick" aria-hidden="true"><Icon.Check /></span>
+                      {c.label}<span className="sr-only">{c.done ? " (done)" : " (to do)"}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
 
@@ -622,7 +699,7 @@ function App() {
                     <CommentOutput value={comment} onChange={setComment} />
                   </div>
                   <div>
-                    <label className="field-label">Editable targets</label>
+                    <span className="field-label">Editable targets</span>
                     {[0, 1, 2].map(i =>
                       targetTypes[i] ? (
                         <TargetOutputRow
@@ -638,8 +715,8 @@ function App() {
                 </div>
 
                 <div className="save-row">
-                  <button className="btn ghost" onClick={clearForm}>Discard</button>
-                  <button className="btn primary" onClick={save}>
+                  <button type="button" className="btn ghost" onClick={clearForm}>Discard</button>
+                  <button type="button" className="btn primary" onClick={save}>
                     <Icon.Save /> {editingId ? "Update report" : "Save to roster"}
                   </button>
                 </div>
@@ -654,8 +731,16 @@ function App() {
           onEdit={editRow}
           onDelete={deleteRow}
           onExport={exportCSV}
+          onCopy={copyRow}
+          editingId={editingId}
         />
-      </div>
+      </main>
+
+      {toast && (
+        <div className="toast" role="status">
+          <Icon.Check /> {toast}
+        </div>
+      )}
     </React.Fragment>
   );
 }
